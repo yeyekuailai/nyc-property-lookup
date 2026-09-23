@@ -85,6 +85,7 @@ async function propertyForBbl(bbl, label = '') {
     pipUrl: `https://propertyinformationportal.nyc.gov/parcels/parcel/${bbl}`,
     bisUrl: `https://a810-bisweb.nyc.gov/bisweb/PropertyBrowseByBBLServlet?${new URLSearchParams({ allborough: boro, allblock: block, alllot: lot })}`,
     dobNowUrl: 'https://a810-dobnow.nyc.gov/publish/Index.html#!/search',
+    hpdSearchUrl: `https://hpdonline.nyc.gov/hpdonline/building/search-results?${new URLSearchParams({ boroId: boro, boro: BOROUGHS[boro], block, lot })}`,
     oldCo, newCo,
     nopvPageUrl: `https://a836-pts-access.nyc.gov/care/datalets/datalet.aspx?UseSearch=no&mode=nopv&pin=${bbl}`,
     nopvPdfUrl: `https://a836-edms.nyc.gov/dctm-rest/repositories/dofedmspts/StatementSearch?${new URLSearchParams({ bbl, stmtDate: NOPV_DATE, stmtType: 'NPV' })}`,
@@ -147,7 +148,8 @@ function render(data) {
     <div class="notice"><p><strong>2026–27 年度 NOPV</strong></p>
     <a class="primary" href="${safe(data.nopvPdfUrl)}" target="_blank" rel="noopener noreferrer">打开财政局 PDF ↗</a>
     <p class="muted small">如需最新修订版或历年文件，请打开上方财政局物业页面。</p></div></section></div>
-    <section class="card"><h2>Certificate of Occupancy</h2><p class="muted small">两套市府数据均按 BBL ${safe(data.bbl)} 查询。2021-03-01 前由 BIS 提供 PDF；此日期起由 DOB NOW 提供打印文件。</p>${coHtml}<div class="links secondary-links"><a href="${safe(data.bisUrl)}" target="_blank" rel="noopener noreferrer">BIS 物业页 ↗</a><a href="${safe(data.dobNowUrl)}" target="_blank" rel="noopener noreferrer">DOB NOW Public Portal ↗</a></div></section>`;
+    <section class="card"><h2>Certificate of Occupancy</h2><p class="muted small">两套市府数据均按 BBL ${safe(data.bbl)} 查询。2021-03-01 前由 BIS 提供 PDF；此日期起由 DOB NOW 提供打印文件。</p>${coHtml}<div class="links secondary-links"><a href="${safe(data.bisUrl)}" target="_blank" rel="noopener noreferrer">BIS 物业页 ↗</a><a href="${safe(data.dobNowUrl)}" target="_blank" rel="noopener noreferrer">DOB NOW Public Portal ↗</a></div></section>
+    <section class="card"><h2>HPD</h2><a class="primary" href="${safe(data.hpdSearchUrl)}" target="_blank" rel="noopener noreferrer">打开 HPD 物业记录 ↗</a></section>`;
 }
 form.addEventListener('submit', event => { event.preventDefault(); search({ address: input.value }); });
 bblForm.addEventListener('submit', event => { event.preventDefault(); search({ bbl: bblInput.value }); });
