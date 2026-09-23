@@ -32,6 +32,8 @@ function safe(value) {
 function addressKey(value) {
   return String(value || '').split(',')[0].toUpperCase()
     .replace(/\b(\d+)(ST|ND|RD|TH)\b/g, '$1')
+    .replace(/\b(WEST|W)\b/g, 'W').replace(/\b(EAST|E)\b/g, 'E')
+    .replace(/\b(NORTH|N)\b/g, 'N').replace(/\b(SOUTH|S)\b/g, 'S')
     .replace(/\b(STREET|ST)\b/g, 'ST').replace(/\b(AVENUE|AVE|AV)\b/g, 'AVE')
     .replace(/\b(ROAD|RD)\b/g, 'RD').replace(/\b(PLACE|PL)\b/g, 'PL')
     .replace(/[^A-Z0-9]/g, '');
