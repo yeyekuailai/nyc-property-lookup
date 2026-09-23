@@ -1,6 +1,6 @@
 # NYC Property Lookup for GitHub Pages
 
-Static site for searching New York City property information by address or BBL. It reads NYC Planning GeoSearch and public NYC data services directly from the browser. Downstream searches use the resolved borough, block, and lot.
+Static site for searching New York City and Nassau County property information by address. It reads official NYC and Nassau County public data services directly from the browser. NYC searches use borough, block, and lot; Nassau searches use section, block, and lot.
 
 Live site: https://yeyekuailai.github.io/nyc-property-lookup/
 
