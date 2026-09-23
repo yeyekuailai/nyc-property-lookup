@@ -3,11 +3,9 @@ const PIP_SERVICE = 'https://services6.arcgis.com/yG5s3afENB5iO9fj/ArcGIS/rest/s
 const OPEN_DATA = 'https://data.cityofnewyork.us/resource';
 const OLD_CO_DATASET = 'bs8b-p36w';
 const NEW_CO_DATASET = 'pkdm-hqz6';
-const BBL_SEARCH = 'https://a836-pts-access.nyc.gov/care/search/commonsearch.aspx?mode=persprop';
 const NOPV_DATE = '20260116';
 const BOROUGHS = { 1: 'Manhattan', 2: 'Bronx', 3: 'Brooklyn', 4: 'Queens', 5: 'Staten Island' };
 const COUNTIES = { 1: 'New York County', 2: 'Bronx County', 3: 'Kings County', 4: 'Queens County', 5: 'Richmond County' };
-const HPD_DATASETS = ['tesw-yqqr', 'wvxf-dwi5', 'ygpa-z7cr', '59kj-x8nc', 'cp6j-7bjj', 'kj4p-ruqc'];
 const labels = {
   address: '官方记录地址', buildingClass: '建筑类别', taxClass: '税务类别',
   buildings: '建筑数量', yearBuilt: '建造年份', floors: '楼层数',
@@ -77,10 +75,9 @@ async function propertyForBbl(bbl, label = '') {
   const boro = Number(bbl[0]);
   const block = Number(bbl.slice(1, 6));
   const lot = Number(bbl.slice(6));
-  const [oldCo, newCo, hpdBuildingId] = await Promise.all([
-    coRecords(OLD_CO_DATASET, bbl, 'c_o_issue_date DESC'),
-    coRecords(NEW_CO_DATASET, bbl, 'submitted_date DESC'),
-    findHpdBuildingId(boro, block, lot)
+  const [oldCo, newCo] = await Promise.all([
+    coRecords(OLD_CO_DATASET, bbl, BOROUGHS[boro], block, lot, 'c_o_issue_date DESC'),
+    coRecords(NEW_CO_DATASET, bbl, BOROUGHS[boro], block, lot, 'submitted_date DESC')
   ]);
   return {
     address: label || [a?.HOUSENUM, a?.STREET_NAME].filter(Boolean).join(' '),
@@ -88,9 +85,7 @@ async function propertyForBbl(bbl, label = '') {
     pipUrl: `https://propertyinformationportal.nyc.gov/parcels/parcel/${bbl}`,
     bisUrl: `https://a810-bisweb.nyc.gov/bisweb/PropertyBrowseByBBLServlet?${new URLSearchParams({ allborough: boro, allblock: block, alllot: lot })}`,
     dobNowUrl: 'https://a810-dobnow.nyc.gov/publish/Index.html#!/search',
-    hpdSearchUrl: `https://hpdonline.nyc.gov/hpdonline/building/search-results?${new URLSearchParams({ boroId: boro, boro: BOROUGHS[boro], block, lot })}`,
-    hpdBuildingId, oldCo, newCo,
-    bblSearchUrl: BBL_SEARCH,
+    oldCo, newCo,
     nopvPageUrl: `https://a836-pts-access.nyc.gov/care/datalets/datalet.aspx?UseSearch=no&mode=nopv&pin=${bbl}`,
     nopvPdfUrl: `https://a836-edms.nyc.gov/dctm-rest/repositories/dofedmspts/StatementSearch?${new URLSearchParams({ bbl, stmtDate: NOPV_DATE, stmtType: 'NPV' })}`,
     building: a ? {
@@ -106,20 +101,15 @@ async function propertyForBbl(bbl, label = '') {
     } : null
   };
 }
-async function coRecords(dataset, bbl, order) {
+async function coRecords(dataset, bbl, borough, block, lot, order) {
   try {
-    const params = new URLSearchParams({ '$where': `bbl='${bbl}'`, '$limit': '50', '$order': order });
+    const blockValues = [...new Set([String(block), String(block).padStart(5, '0')])];
+    const lotValues = [...new Set([String(lot), String(lot).padStart(4, '0'), String(lot).padStart(5, '0')])];
+    const quoted = values => values.map(value => `'${value}'`).join(',');
+    const where = `bbl='${bbl}' OR (borough='${borough}' AND block IN(${quoted(blockValues)}) AND lot IN(${quoted(lotValues)}))`;
+    const params = new URLSearchParams({ '$where': where, '$limit': '50', '$order': order });
     return await json(`${OPEN_DATA}/${dataset}.json?${params}`);
   } catch { return []; }
-}
-async function findHpdBuildingId(boro, block, lot) {
-  const where = `boroid=${boro} AND block=${block} AND lot=${lot}`;
-  const requests = HPD_DATASETS.map(async dataset => {
-    const params = new URLSearchParams({ '$select': 'buildingid', '$where': where, '$limit': '1' });
-    return (await json(`${OPEN_DATA}/${dataset}.json?${params}`))[0]?.buildingid || null;
-  });
-  const results = await Promise.allSettled(requests);
-  return results.find(x => x.status === 'fulfilled' && x.value)?.value || null;
 }
 async function search(task) {
   button.disabled = true; bblButton.disabled = true;
@@ -146,25 +136,18 @@ function render(data) {
     ...data.oldCo.map(x => ({ era: '2021-03-01 以前 · BIS', number: `${x.job_number || ''}${x.item_number ? ` / ${x.item_number}` : ''}`, type: x.issue_type, status: x.application_status_raw, date: x.c_o_issue_date?.slice(0, 10), href: `https://a810-bisweb.nyc.gov/bisweb/COPdfListingServlet?${new URLSearchParams({ bin: x.bin_number || x.bin || '', borough: data.boro, key: x.job_number || '', requestid: '1' })}`, action: '打开并下载 CO PDF' }))
   ];
   const coHtml = coRows.length ? `<div class="co-list">${coRows.map(x => `<article class="record"><p class="small muted">${safe(x.era)}</p><strong>${safe(x.number || 'Certificate of Occupancy')}</strong><p>${safe([x.type, x.status, x.date].filter(Boolean).join(' · '))}</p><a class="primary" href="${safe(x.href)}" target="_blank" rel="noopener noreferrer">${safe(x.action)} ↗</a></article>`).join('')}</div>` : '<p class="message warning">市府开放数据中没有找到该 BBL 的入住许可证。较老建筑可能无需 CO；也可分别打开 BIS 与 DOB NOW 复核。</p>';
-  const hpdBase = data.hpdBuildingId ? `https://hpdonline.nyc.gov/hpdonline/building/${data.hpdBuildingId}` : null;
-  const hpdLinks = hpdBase ? [
-    ['建筑概览', 'overview'], ['Complaints', 'complaints'], ['Violations', 'violations'],
-    ['Building Charges / Fees', 'charges'], ['Litigation', 'litigations']
-  ].map(([label, path]) => `<a href="${hpdBase}/${path}" target="_blank" rel="noopener noreferrer">${label} ↗</a>`).join('') : `<a href="${safe(data.hpdSearchUrl)}" target="_blank" rel="noopener noreferrer">打开 HPD 的 BBL 查询结果 ↗</a>`;
   result.innerHTML = `<section class="card"><h2>${safe(data.address || '物业资料')}</h2>
     <p><span class="pill">${safe(data.borough)}</span>　County: ${safe(data.county)} · Block ${data.block} · Lot ${data.lot} · BBL ${safe(data.bbl)}</p>
     <div class="links"><a href="${safe(data.pipUrl)}" target="_blank" rel="noopener noreferrer">Property Information Portal ↗</a>
     <a href="${safe(data.bisUrl)}" target="_blank" rel="noopener noreferrer">DOB Building Information ↗</a>
-    <a href="${safe(data.nopvPageUrl)}" target="_blank" rel="noopener noreferrer">财政局 BBL 对应物业页面 ↗</a>
-    <a href="${safe(data.bblSearchUrl)}" target="_blank" rel="noopener noreferrer">财政局 BBL Search ↗</a></div></section>
+    <a href="${safe(data.nopvPageUrl)}" target="_blank" rel="noopener noreferrer">财政局 BBL 对应物业页面 ↗</a></div></section>
     <div class="grid"><section class="card"><h2>Building Information</h2>${b ? `<table>${rows}</table>` : '<p class="message warning">PIP 楼宇资料暂时不可读取。可打开上方原网站。</p>'}
     <p class="muted small">来源：NYC Property Information Portal 使用的市府地块数据。</p></section>
     <section class="card"><h2>Notice of Property Value</h2><p class="muted small">使用 BBL ${safe(data.bbl)}，无需财政局识别地址。</p>
     <div class="notice"><p><strong>2026–27 年度 NOPV</strong></p>
     <a class="primary" href="${safe(data.nopvPdfUrl)}" target="_blank" rel="noopener noreferrer">打开财政局 PDF ↗</a>
     <p class="muted small">如需最新修订版或历年文件，请打开上方财政局物业页面。</p></div></section></div>
-    <section class="card"><h2>Certificate of Occupancy</h2><p class="muted small">两套市府数据均按 BBL ${safe(data.bbl)} 查询。2021-03-01 前由 BIS 提供 PDF；此日期起由 DOB NOW 提供打印文件。</p>${coHtml}<div class="links secondary-links"><a href="${safe(data.bisUrl)}" target="_blank" rel="noopener noreferrer">BIS 物业页 ↗</a><a href="${safe(data.dobNowUrl)}" target="_blank" rel="noopener noreferrer">DOB NOW Public Portal ↗</a></div></section>
-    <section class="card"><h2>HPD Building Records</h2><p class="muted small">Complaints、Violations、Building Charges / Fees、Litigation</p><div class="links hpd-links">${hpdLinks}</div>${data.hpdBuildingId ? '' : '<p class="muted small">HPD 开放数据未返回 Building ID；官方链接已预填 Borough、Block、Lot，打开后选择该建筑。</p>'}</section>`;
+    <section class="card"><h2>Certificate of Occupancy</h2><p class="muted small">两套市府数据均按 BBL ${safe(data.bbl)} 查询。2021-03-01 前由 BIS 提供 PDF；此日期起由 DOB NOW 提供打印文件。</p>${coHtml}<div class="links secondary-links"><a href="${safe(data.bisUrl)}" target="_blank" rel="noopener noreferrer">BIS 物业页 ↗</a><a href="${safe(data.dobNowUrl)}" target="_blank" rel="noopener noreferrer">DOB NOW Public Portal ↗</a></div></section>`;
 }
 form.addEventListener('submit', event => { event.preventDefault(); search({ address: input.value }); });
 bblForm.addEventListener('submit', event => { event.preventDefault(); search({ bbl: bblInput.value }); });
