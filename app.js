@@ -43,7 +43,7 @@ function parseBbl(value) {
   return parts ? parts[1] + parts[2].padStart(5, '0') + parts[3].padStart(4, '0') : null;
 }
 async function json(url) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
+  const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(12000) });
   if (!response.ok) throw new Error(`市府服务返回 HTTP ${response.status}`);
   const value = await response.json();
   if (value.error) throw new Error(value.error.message || '市府服务查询失败');
