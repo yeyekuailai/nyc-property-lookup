@@ -23,7 +23,7 @@ const I18N = {
     co: 'Certificate of Occupancy', coHelp: 'Both NYC datasets are searched with BBL {bbl}. BIS provides PDFs for requests before March 1, 2021; DOB NOW provides printable records from that date forward.',
     coNew: 'On or after 2021-03-01 · DOB NOW', coOld: 'Before 2021-03-01 · BIS', openDobNow: 'Open DOB NOW to print', openCoPdf: 'Open and download CO PDF', noCo: 'No Certificate of Occupancy was found for this BBL in NYC Open Data. Some older buildings do not require a CO; check BIS and DOB NOW below.', bisProperty: 'BIS property page', dobNowPortal: 'DOB NOW Public Portal',
     hpd: 'HPD', openHpd: 'Open HPD property records', languageButton: '中文',
-    nassauProperty: 'Nassau County Property Information', section: 'Section', parcel: 'Parcel (SBL)', parcelKey: 'Parcel Key', nassauHelp: 'Use the Section, Block, and Lot shown here in the official Land Records Viewer for assessment rolls, tax maps, exemptions, prior taxes, and comparable sales.', openNassau: 'Open Nassau County Land Records Viewer',
+    nassauProperty: 'Nassau County Property Information', section: 'Section', parcel: 'Parcel (SBL)', parcelKey: 'Parcel Key', nassauHelp: 'Open this property directly in the official Land Records Viewer for assessment rolls, tax maps, exemptions, prior taxes, and comparable sales.', openNassau: 'Open this property in Nassau LRV',
     labels: { address: 'Official record address', buildingClass: 'Building class', taxClass: 'Tax class', buildings: 'Number of buildings', yearBuilt: 'Year built', floors: 'Floors', totalUnits: 'Total units', residentialUnits: 'Residential units', commercialUnits: 'Commercial units', buildingAreaSqFt: 'Building area (sq ft)', residentialAreaSqFt: 'Residential area (sq ft)', commercialAreaSqFt: 'Commercial area (sq ft)', landAreaSqFt: 'Land area (sq ft)', zoning: 'Primary zoning', style: 'Building style', constructionType: 'Construction type', exteriorWall: 'Exterior wall', exteriorCondition: 'Exterior condition', basement: 'Basement' }
   },
   zh: {
@@ -38,7 +38,7 @@ const I18N = {
     co: 'Certificate of Occupancy', coHelp: '两套市府数据均按 BBL {bbl} 查询。2021-03-01 前由 BIS 提供 PDF；此日期起由 DOB NOW 提供打印文件。',
     coNew: '2021-03-01 以后 · DOB NOW', coOld: '2021-03-01 以前 · BIS', openDobNow: '打开 DOB NOW 打印', openCoPdf: '打开并下载 CO PDF', noCo: '市府开放数据中没有找到该 BBL 的入住许可证。较老建筑可能无需 CO；也可分别打开 BIS 与 DOB NOW 复核。', bisProperty: 'BIS 物业页', dobNowPortal: 'DOB NOW Public Portal',
     hpd: 'HPD', openHpd: '打开 HPD 物业记录', languageButton: 'English',
-    nassauProperty: 'Nassau County 物业资料', section: 'Section', parcel: '地块（SBL）', parcelKey: 'Parcel Key', nassauHelp: '使用这里显示的 Section、Block、Lot，在官方 Land Records Viewer 查看评估记录、税务地图、减免、历年税款和可比销售。', openNassau: '打开 Nassau County Land Records Viewer',
+    nassauProperty: 'Nassau County 物业资料', section: 'Section', parcel: '地块（SBL）', parcelKey: 'Parcel Key', nassauHelp: '直接在官方 Land Records Viewer 打开该物业，查看评估记录、税务地图、减免、历年税款和可比销售。', openNassau: '直接打开该物业的 Nassau LRV',
     labels: { address: '官方记录地址', buildingClass: '建筑类别', taxClass: '税务类别', buildings: '建筑数量', yearBuilt: '建造年份', floors: '楼层数', totalUnits: '总单元数', residentialUnits: '住宅单元', commercialUnits: '商业单元', buildingAreaSqFt: '建筑面积（平方英尺）', residentialAreaSqFt: '住宅面积（平方英尺）', commercialAreaSqFt: '商业面积（平方英尺）', landAreaSqFt: '土地面积（平方英尺）', zoning: '主要分区', style: '建筑风格', constructionType: '结构', exteriorWall: '外墙', exteriorCondition: '外部状况', basement: '地下室' }
   }
 };
@@ -86,7 +86,11 @@ async function findNassauAddress(address) {
   const parcel = parcelResponse.features?.[0]?.attributes;
   if (!parcel) throw new Error(t('noMatch'));
   const parts = String(parcel.PARCEL || parcel.FIRST_SBL || '').trim().split(/\s+/);
-  return { jurisdiction: 'nassau', address: candidate.address, county: 'Nassau County', section: parts[0] || parcel.SECTION, block: parts[1] || parcel.BLOCK, lot: parts[2] || '', parcel: parcel.PARCEL || parcel.FIRST_SBL, parcelKey: parcel.PARCELKEY, nassauUrl: NASSAU_LRV };
+  const section = String(parts[0] || parcel.SECTION || '');
+  const block = String(parts[1] || parcel.BLOCK || '');
+  const lot = String(parts[2] || '');
+  const infoKey = `${section.padStart(2, '0')}${block.padEnd(5, ' ')}${lot.padStart(4, '0')}0`.replace(/ /g, '+');
+  return { jurisdiction: 'nassau', address: candidate.address, county: 'Nassau County', section, block, lot, parcel: parcel.PARCEL || parcel.FIRST_SBL, parcelKey: parcel.PARCELKEY, nassauUrl: `${NASSAU_LRV}info/${infoKey}/` };
 }
 async function propertyForBbl(bbl, label = '') {
   const query = new URLSearchParams({ where: `PARID='${bbl}'`, outFields: '*', returnGeometry: 'false', f: 'json' }); let a = null;
