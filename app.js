@@ -23,7 +23,7 @@ const I18N = {
     co: 'Certificate of Occupancy', coHelp: 'Both NYC datasets are searched with BBL {bbl}. BIS provides PDFs for requests before March 1, 2021; DOB NOW provides printable records from that date forward.',
     coNew: 'On or after 2021-03-01 · DOB NOW', coOld: 'Before 2021-03-01 · BIS', openDobNow: 'Open DOB NOW to print', openCoPdf: 'Open and download CO PDF', noCo: 'No Certificate of Occupancy was found for this BBL in NYC Open Data. Some older buildings do not require a CO; check BIS and DOB NOW below.', bisProperty: 'BIS property page', dobNowPortal: 'DOB NOW Public Portal',
     hpd: 'HPD', openHpd: 'Open HPD property records', languageButton: '中文',
-    nassauProperty: 'Nassau County Property Information', section: 'Section', parcel: 'Parcel (SBL)', parcelKey: 'Parcel Key', nassauHelp: 'Open this property directly in the official Land Records Viewer for assessment rolls, tax maps, exemptions, prior taxes, and comparable sales.', openNassau: 'Open this property in Nassau LRV',
+    nassauProperty: 'Nassau County Property Information', section: 'Section', parcel: 'Parcel (SBL)', parcelKey: 'Parcel Key', nassauHelp: 'The Section, Block, and Lot below are submitted automatically to the official Land Records Viewer. If you are already signed in, the property result opens without re-entering anything.', openNassau: 'Search this property in Nassau LRV',
     labels: { address: 'Official record address', buildingClass: 'Building class', taxClass: 'Tax class', buildings: 'Number of buildings', yearBuilt: 'Year built', floors: 'Floors', totalUnits: 'Total units', residentialUnits: 'Residential units', commercialUnits: 'Commercial units', buildingAreaSqFt: 'Building area (sq ft)', residentialAreaSqFt: 'Residential area (sq ft)', commercialAreaSqFt: 'Commercial area (sq ft)', landAreaSqFt: 'Land area (sq ft)', zoning: 'Primary zoning', style: 'Building style', constructionType: 'Construction type', exteriorWall: 'Exterior wall', exteriorCondition: 'Exterior condition', basement: 'Basement' }
   },
   zh: {
@@ -38,7 +38,7 @@ const I18N = {
     co: 'Certificate of Occupancy', coHelp: '两套市府数据均按 BBL {bbl} 查询。2021-03-01 前由 BIS 提供 PDF；此日期起由 DOB NOW 提供打印文件。',
     coNew: '2021-03-01 以后 · DOB NOW', coOld: '2021-03-01 以前 · BIS', openDobNow: '打开 DOB NOW 打印', openCoPdf: '打开并下载 CO PDF', noCo: '市府开放数据中没有找到该 BBL 的入住许可证。较老建筑可能无需 CO；也可分别打开 BIS 与 DOB NOW 复核。', bisProperty: 'BIS 物业页', dobNowPortal: 'DOB NOW Public Portal',
     hpd: 'HPD', openHpd: '打开 HPD 物业记录', languageButton: 'English',
-    nassauProperty: 'Nassau County 物业资料', section: 'Section', parcel: '地块（SBL）', parcelKey: 'Parcel Key', nassauHelp: '直接在官方 Land Records Viewer 打开该物业，查看评估记录、税务地图、减免、历年税款和可比销售。', openNassau: '直接打开该物业的 Nassau LRV',
+    nassauProperty: 'Nassau County 物业资料', section: 'Section', parcel: '地块（SBL）', parcelKey: 'Parcel Key', nassauHelp: '系统会把下方 Section、Block、Lot 自动提交到官方 Land Records Viewer。你已登录时会直接显示该物业结果，无需再次输入。', openNassau: '在 Nassau LRV 自动查询此物业',
     labels: { address: '官方记录地址', buildingClass: '建筑类别', taxClass: '税务类别', buildings: '建筑数量', yearBuilt: '建造年份', floors: '楼层数', totalUnits: '总单元数', residentialUnits: '住宅单元', commercialUnits: '商业单元', buildingAreaSqFt: '建筑面积（平方英尺）', residentialAreaSqFt: '住宅面积（平方英尺）', commercialAreaSqFt: '商业面积（平方英尺）', landAreaSqFt: '土地面积（平方英尺）', zoning: '主要分区', style: '建筑风格', constructionType: '结构', exteriorWall: '外墙', exteriorCondition: '外部状况', basement: '地下室' }
   }
 };
@@ -89,8 +89,7 @@ async function findNassauAddress(address) {
   const section = String(parts[0] || parcel.SECTION || '');
   const block = String(parts[1] || parcel.BLOCK || '');
   const lot = String(parts[2] || '');
-  const infoKey = `${section.padStart(2, '0')}${block.padEnd(5, ' ')}${lot.padStart(4, '0')}0`.replace(/ /g, '+');
-  return { jurisdiction: 'nassau', address: candidate.address, county: 'Nassau County', section, block, lot, parcel: parcel.PARCEL || parcel.FIRST_SBL, parcelKey: parcel.PARCELKEY, nassauUrl: `${NASSAU_LRV}info/${infoKey}/` };
+  return { jurisdiction: 'nassau', address: candidate.address, county: 'Nassau County', section, block, lot, parcel: parcel.PARCEL || parcel.FIRST_SBL, parcelKey: parcel.PARCELKEY };
 }
 async function propertyForBbl(bbl, label = '') {
   const query = new URLSearchParams({ where: `PARID='${bbl}'`, outFields: '*', returnGeometry: 'false', f: 'json' }); let a = null;
@@ -113,7 +112,7 @@ function render(data) {
   result.style.display = 'block';
   if (data.jurisdiction === 'nassau') {
     result.innerHTML = `<section class="card"><h2>${safe(data.address)}</h2><p><span class="pill">Nassau</span>　${safe(data.county)} · ${t('section')} ${safe(data.section)} · Block ${safe(data.block)} · Lot ${safe(data.lot)}</p></section>
-      <section class="card"><h2>${t('nassauProperty')}</h2><table><tr><td>${t('parcel')}</td><td>${safe(data.parcel)}</td></tr><tr><td>${t('section')}</td><td>${safe(data.section)}</td></tr><tr><td>Block</td><td>${safe(data.block)}</td></tr><tr><td>Lot</td><td>${safe(data.lot)}</td></tr><tr><td>${t('parcelKey')}</td><td>${safe(data.parcelKey)}</td></tr></table><p class="muted small">${t('nassauHelp')}</p><a class="primary" href="${safe(data.nassauUrl)}" target="_blank" rel="noopener noreferrer">${t('openNassau')} ↗</a></section>`;
+      <section class="card"><h2>${t('nassauProperty')}</h2><table><tr><td>${t('parcel')}</td><td>${safe(data.parcel)}</td></tr><tr><td>${t('section')}</td><td>${safe(data.section)}</td></tr><tr><td>Block</td><td>${safe(data.block)}</td></tr><tr><td>Lot</td><td>${safe(data.lot)}</td></tr><tr><td>${t('parcelKey')}</td><td>${safe(data.parcelKey)}</td></tr></table><p class="muted small">${t('nassauHelp')}</p><form method="post" action="${NASSAU_LRV}" target="_blank"><input type="hidden" name="sec" value="${safe(data.section)}"><input type="hidden" name="block" value="${safe(data.block)}"><input type="hidden" name="lot" value="${safe(data.lot)}"><input type="hidden" name="subbed" value="1"><button class="primary" name="subad" type="submit">${t('openNassau')} ↗</button></form></section>`;
     return;
   }
   if (data.candidates) { result.innerHTML = `<section class="card"><h2>${t('chooseLot')}</h2>${data.candidates.map(c => `<p><button data-bbl="${safe(c.bbl)}">${safe(c.label)} · BBL ${safe(c.bbl)}</button></p>`).join('')}</section>`; return; }
